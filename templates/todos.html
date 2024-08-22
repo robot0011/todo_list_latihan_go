@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>To-Do List</title>
+</head>
+
+<body>
+    <button id="logoutButton">Logout</button>
+    <h1>To-Do List</h1>
+    <form id="createTodoForm">
+        <label for="task">New Task:</label>
+        <input type="text" id="task" name="task" required>
+        <button type="submit">Add Task</button>
+        <link rel="stylesheet" href="/static/todolist.css">
+    </form>
+
+    <h2>Your Tasks</h2>
+    <ul id="todoList"></ul>
+
+    <script>
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            // If no token, redirect to the login page
+            window.location.href = '/login';
+        }
+
+        // Function to fetch todos
+        async function fetchTodos() {
+            const token = localStorage.getItem('authToken');
+
+            try {
+                const response = await fetch('http://localhost:8000/todo/list', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch todos');
+                }
+
+                const data = await response.json();
+                const todos = data.todos; // Access the todos array from the response object
+                const todoList = document.getElementById('todoList');
+                todoList.innerHTML = '';
+
+                todos.forEach(todo => {
+                    const li = document.createElement('li');
+                    const span = document.createElement('span');
+                    span.textContent = todo.task;
+
+                    // Style the task based on its completion status
+                    if (todo.completed) {
+                        span.style.textDecoration = 'line-through';
+                    }
+
+                    li.appendChild(span);
+
+                    // Add check button for each todo
+                    const checkButton = document.createElement('button');
+                    checkButton.textContent = todo.completed ? 'Uncheck' : 'Check';
+                    checkButton.addEventListener('click', () => toggleTodoComplete(todo.id, !todo.completed));
+                    li.appendChild(checkButton);
+
+                    // Add edit button for each todo
+                    const editButton = document.createElement('button');
+                    editButton.textContent = 'Edit';
+                    editButton.addEventListener('click', () => editTodoTitle(todo.id, span, editButton));
+                    li.appendChild(editButton);
+
+                    // Add delete button for each todo
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = 'Delete';
+                    deleteButton.addEventListener('click', () => deleteTodo(todo.id));
+                    li.appendChild(deleteButton);
+
+                    todoList.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to fetch todos');
+            }
+        }
+
+        // Function to toggle the completion status of a todo
+        async function toggleTodoComplete(id, isCompleted) {
+            const token = localStorage.getItem('authToken');
+
+            try {
+                const response = await fetch(`http://localhost:8000/todo/${id}/check`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        completed: isCompleted
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to toggle todo completion status');
+                }
+
+                // Refresh the list of todos
+                fetchTodos();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to toggle todo completion status');
+            }
+        }
+
+        // Function to create a new todo
+        document.getElementById('createTodoForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const task = document.getElementById('task').value;
+            const token = localStorage.getItem('authToken');
+
+            if (task.length < 3 || task.length > 150) {
+                alert('Task must be between 3 and 150 characters');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:8000/todo/create', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        task: task
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to create todo');
+                }
+
+                // Refresh the list of todos
+                fetchTodos();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to create todo');
+            }
+        });
+
+        // Function to delete a todo
+        async function deleteTodo(id) {
+            const token = localStorage.getItem('authToken');
+
+            try {
+                const response = await fetch(`http://localhost:8000/todo/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete todo');
+                }
+
+                // Refresh the list of todos
+                fetchTodos();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to delete todo');
+            }
+        }
+
+        // Function to edit a todo title
+        // Function to edit a todo title
+// Function to edit a todo title
+// Function to edit a todo title
+async function editTodoTitle(id, span, editButton) {
+    const token = localStorage.getItem('authToken');
+
+    if (editButton.textContent === 'Edit') {
+        // Switch to edit mode
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = span.textContent;
+        span.replaceWith(input);
+        editButton.textContent = 'Save';
+
+        // Store the input element reference in a variable
+        // Use a unique identifier to link back to the input element
+        input.dataset.todoId = id;
+    } else {
+        // Retrieve the input element using the stored unique identifier
+        const input = document.querySelector(`input[data-todo-id="${id}"]`);
+
+        if (!input) {
+            console.error('Input element not found.');
+            return;
+        }
+
+        // Get the value from the input element and trim it
+        const newTask = input.value?.trim();
+
+        if (!newTask || newTask.length < 3 || newTask.length > 150) {
+            alert('Task must be between 3 and 150 characters');
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:8000/todo/${id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    task: newTask
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update todo title');
+            }
+
+            // Refresh the list of todos
+            fetchTodos();
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to update todo title');
+        }
+    }
+}
+
+
+
+
+
+        // Function to logout
+        document.getElementById('logoutButton').addEventListener('click', logout);
+        function logout() {
+            // Remove the auth token from localStorage
+            localStorage.removeItem('authToken');
+
+            // Optionally, clear other related data
+            // localStorage.removeItem('userData');
+            // localStorage.clear(); // Clears all localStorage data
+
+            // Redirect to the login page or homepage
+            window.location.href = '/'; // Adjust the URL based on your application
+        }
+
+        // Fetch todos on page load
+        fetchTodos();
+
+    </script>
+</body>
+
+</html>
